@@ -3,6 +3,9 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      minHeight: {
+        '3.6': '3.6rem'
+      },
       backgroundImage: {
         "primary-background": "url('../src/assets/wallpaper.jpg')",
         "second-background": "url('../src/assets/background.png') !important",

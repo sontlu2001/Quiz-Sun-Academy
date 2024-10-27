@@ -36,5 +36,10 @@
  .text-primary{
     @apply text-[#f33a58]
   }
- 
+  .text-correct{
+    @apply text-[#2ecc71] 
+  }
+  .text-wrong{
+    @apply text-[#e74c3c] 
+  }
 }

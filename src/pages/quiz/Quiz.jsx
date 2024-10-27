@@ -18,20 +18,22 @@ import {
   Image,
   Modal,
   ModalBody,
-  ModalCloseButton,
   ModalContent,
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Stack,
   Text,
   useDisclosure,
 } from "@chakra-ui/react";
-import { set } from "lodash";
+import { useNavigate } from 'react-router-dom';
 
 export default function Quiz() {
   const { quizId } = useParams();
   const [quizList, setQuizList] = useState([]);
+  const [quizResults, setQuizResults] = useState({
+    correctAnswers: 0,
+    incorrectAnswers: 0
+  });
   const [answers, setAnswers] = useState({});
   const [indexQuestion, setIndexQuestion] = useState(0);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -42,6 +44,7 @@ export default function Quiz() {
   } = useDisclosure();
   const cancelRef = useRef();
   const [isSubmit, setIsSubmit] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -51,7 +54,8 @@ export default function Quiz() {
           console.log("No data found");
           return;
         }
-        setQuizList(res?.data?.data?.questions);
+        const questions = res.data.data.questions;
+        setQuizList(questions);
         // store quizResultId in sessionStorage
         sessionStorage.setItem(
           "quizResultId",
@@ -68,15 +72,26 @@ export default function Quiz() {
   useEffect(() => {
     if (isSubmit) {
       const getQuizResult = async () => {
-        const res = await api.post(`/quiz/submit`, {
-          quizId,
-          quizResultId: JSON.parse(sessionStorage.getItem("quizResultId")),
-          answers: answers
-        });
-        if (res.data) {
-          setQuizList(res.data.questions);
-          (res.data.questions);
+        try {
+          const res = await api.post(`/quiz/submit`, {
+            quizId,
+            quizResultId: JSON.parse(sessionStorage.getItem("quizResultId")),
+            answers: answers
+          });
+          if (res.status = 200) {
+            setQuizResults({
+              correctAnswers: res.data.correctAnswers,
+              incorrectAnswers: res.data.incorrectAnswers
+            });
+          }
+        } catch (error) {
+          if(error.response.status === 400){
+            navigate('/');
+            toast.error('Dữ liệu bài thi không hợp lệ');
+            return;
+          }
         }
+        
       };
       getQuizResult();
     }
@@ -85,30 +100,26 @@ export default function Quiz() {
   const handleNextQuestion = () => {
     setIndexQuestion(indexQuestion + 1);
   };
+
   const handlePrevQuestion = () => {
     setIndexQuestion(indexQuestion - 1);
   };
+
   const handleSubmitQuiz = () => {
     onClose();
-    onOpenModelResult();
     setIsSubmit(true);
+    onOpenModelResult();
   };
-  const handleCorrectAnswer = (questions) => {
-    let countCorrect = 0;
-    let countWrong = 0;
-    questions.forEach((question) => {
-      if (question.correct_answer === question.answer) {
-        countCorrect++;
-      } else {
-        countWrong++;
-      }
-    });
 
-    return { countCorrect, countWrong };
-  };
+
+  const handleNavigateDetailQuiz = ()=> {
+    onCloseModelResult();
+    const quizIdFromStore = sessionStorage.getItem('quizResultId');
+    navigate(`/quiz-result/${quizIdFromStore}`);
+  }
   
   return (
-    <div className="flex justify-center pt-20 gap-8 h-screen bg-second-background bg-cover">
+    <div className="flex justify-center pt-20 gap-8">
       <QuizQuestion
         handleNextQuestion={handleNextQuestion}
         handlePrevQuestion={handlePrevQuestion}
@@ -117,7 +128,6 @@ export default function Quiz() {
         indexQuestion={indexQuestion}
         answers={answers}
         setAnswers={setAnswers}
-        onOpen={onOpen}
         isSubmit={isSubmit}
         question={quizList.length > 0 ? quizList[indexQuestion] : {}}
       />
@@ -126,9 +136,11 @@ export default function Quiz() {
         indexQuestion={indexQuestion}
         setIndexQuestion={setIndexQuestion}
         isSubmit={isSubmit}
+        onOpen={onOpen}
+        handleSubmitQuiz={handleSubmitQuiz}
       />
 
-      {/* Button submit */}
+      {/* model confirm submit quiz*/}
       <AlertDialog
         motionPreset="slideInBottom"
         leastDestructiveRef={cancelRef}
@@ -154,7 +166,7 @@ export default function Quiz() {
       </AlertDialog>
 
       {/* UI Result */}
-      <Modal onClose={onCloseModelResult} isOpen={isOpenModelResult} isCentered>
+      <Modal onClose={onCloseModelResult} closeOnOverlayClick={false} isOpen={isOpenModelResult} isCentered>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader borderRadius={4} textColor={"white"} bgColor={"#f8516d"}>
@@ -172,11 +184,11 @@ export default function Quiz() {
             <Text fontSize={15} fontWeight={600}>
               Kết quả
             </Text>
-            <Text textColor={"green"}>Số câu trả lời đúng: {handleCorrectAnswer(quizList).countCorrect}</Text>
-            <Text textColor={"red"}>Số câu trả lời sai: {handleCorrectAnswer(quizList).countWrong}</Text>
+            <Text textColor={"green"}>Số câu trả lời đúng: {quizResults.correctAnswers}</Text>
+            <Text textColor={"red"}>Số câu trả lời sai: {quizResults.incorrectAnswers}</Text>
           </ModalBody>
           <ModalFooter justifyContent={"center"}>
-            <Button colorScheme="red" onClick={onCloseModelResult}>
+            <Button colorScheme="red" onClick={handleNavigateDetailQuiz}>
               Xem chi tiết
             </Button>
           </ModalFooter>
